@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using VehicleManagementApi.Models;
 
-namespace VehicleManagementApi.Data;
+namespace VehicleManagementApi.Database;
 
 public class AppDbContext : DbContext
 {

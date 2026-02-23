@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using VehicleManagementApi.Data;
+using VehicleManagementApi.Database;
 using VehicleManagementApi.Models;
 
 namespace VehicleManagementApi.Controllers;

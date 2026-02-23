@@ -3,7 +3,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace Vehicle_Management.Migrations
+namespace Vehicle_Management.Database.Migrations
 {
     /// <inheritdoc />
     public partial class InitialCreate : Migration

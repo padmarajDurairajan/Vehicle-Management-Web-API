@@ -4,11 +4,11 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
-using VehicleManagementApi.Data;
+using VehicleManagementApi.Database;
 
 #nullable disable
 
-namespace Vehicle_Management.Migrations
+namespace Vehicle_Management.Database.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     [Migration("20260219112349_InitialCreate")]
