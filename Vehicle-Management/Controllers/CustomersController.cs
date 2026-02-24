@@ -6,24 +6,24 @@ namespace VehicleManagementApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class VehiclesController : ControllerBase
+public class CustomersController : ControllerBase
 {
-    private readonly IVehicleService _service;
-    public VehiclesController(IVehicleService service) => _service = service;
+    private readonly ICustomerService _service;
+    public CustomersController(ICustomerService service) => _service = service;
 
     [HttpGet]
-    public async Task<ActionResult<List<Vehicle>>> GetAll()
+    public async Task<ActionResult<List<Customer>>> GetAll()
         => Ok(await _service.GetAllAsync());
 
     [HttpGet("{id:int}")]
-    public async Task<ActionResult<Vehicle>> GetById(int id)
+    public async Task<ActionResult<Customer>> GetById(int id)
     {
-        var vehicle = await _service.GetByIdAsync(id);
-        return vehicle is null ? NotFound() : Ok(vehicle);
+        var customer = await _service.GetByIdAsync(id);
+        return customer is null ? NotFound() : Ok(customer);
     }
 
     [HttpPost]
-    public async Task<ActionResult<Vehicle>> Create(Vehicle input)
+    public async Task<ActionResult<Customer>> Create(Customer input)
     {
         var (success, error, created) = await _service.CreateAsync(input);
         if (!success) return Conflict(error);
@@ -32,7 +32,7 @@ public class VehiclesController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, Vehicle input)
+    public async Task<IActionResult> Update(int id, Customer input)
     {
         var (success, error) = await _service.UpdateAsync(id, input);
         if (!success) return error == "Not found." ? NotFound() : Conflict(error);

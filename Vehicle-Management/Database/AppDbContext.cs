@@ -9,10 +9,16 @@ public class AppDbContext : DbContext
 
     public DbSet<Vehicle> Vehicles => Set<Vehicle>();
 
+    public DbSet<Customer> Customers => Set<Customer>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Vehicle>()
             .HasIndex(v => v.RegistrationNumber)
+            .IsUnique();
+
+        modelBuilder.Entity<Customer>()
+            .HasIndex(c => c.Email)
             .IsUnique();
     }
 }
