@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using VehicleManagementApi.Database;
 using VehicleManagementApi.Repositories;
 using VehicleManagementApi.Services;
+using VehicleManagementApi.Filters;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -16,6 +17,8 @@ builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IVehicleRepository, VehicleRepository>();
 builder.Services.AddScoped<IVehicleService, VehicleService>();
+builder.Services.AddScoped<ValidateVehicleFilter>();
+builder.Services.AddScoped<UniqueVehicleRegistrationFilter>();
 
 var app = builder.Build();
 

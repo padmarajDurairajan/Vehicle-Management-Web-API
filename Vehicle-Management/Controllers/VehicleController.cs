@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using VehicleManagementApi.Models;
 using VehicleManagementApi.Services;
+using VehicleManagementApi.Filters;
 
 namespace VehicleManagementApi.Controllers;
 
@@ -23,6 +24,8 @@ public class VehiclesController : ControllerBase
     }
 
     [HttpPost]
+    [ServiceFilter(typeof(ValidateVehicleFilter))]
+    [ServiceFilter(typeof(UniqueVehicleRegistrationFilter))]
     public async Task<ActionResult<Vehicle>> Create(Vehicle input)
     {
         var (success, error, created) = await _service.CreateAsync(input);
@@ -32,6 +35,8 @@ public class VehiclesController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [ServiceFilter(typeof(ValidateVehicleFilter))]
+    [ServiceFilter(typeof(UniqueVehicleRegistrationFilter))]
     public async Task<IActionResult> Update(int id, Vehicle input)
     {
         var (success, error) = await _service.UpdateAsync(id, input);
