@@ -10,7 +10,12 @@ namespace VehicleManagementApi.Controllers;
 public class VehiclesController : ControllerBase
 {
     private readonly IVehicleService _service;
-    public VehiclesController(IVehicleService service) => _service = service;
+    private readonly ILogger<VehiclesController> _logger;
+    public VehiclesController(IVehicleService service, ILogger<VehiclesController> logger)
+    {
+        _service = service;
+        _logger = logger;
+    }
 
     [HttpGet]
     public async Task<ActionResult<List<Vehicle>>> GetAll()
@@ -28,6 +33,8 @@ public class VehiclesController : ControllerBase
     [ServiceFilter(typeof(UniqueVehicleRegistrationFilter))]
     public async Task<ActionResult<Vehicle>> Create(Vehicle input)
     {
+        _logger.LogInformation("POST /api/vehicles called. RegNo={RegNo}", input.RegistrationNumber);
+
         var (success, error, created) = await _service.CreateAsync(input);
         if (!success) return Conflict(error);
 
