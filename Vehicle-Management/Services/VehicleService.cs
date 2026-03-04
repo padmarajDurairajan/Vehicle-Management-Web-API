@@ -80,4 +80,7 @@ public class VehicleService : IVehicleService
         _logger.LogInformation("Vehicle deleted successfully. Id={Id}", id);
         return true;
     }
+
+    public Task<List<Vehicle>> GetByCustomerIdAsync(int customerId)
+    => _repo.GetByCustomerIdAsync(customerId);
 }

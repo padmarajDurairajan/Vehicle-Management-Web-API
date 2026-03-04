@@ -19,4 +19,6 @@ public class Customer
     public string? Address { get; set; }
 
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    public List<Vehicle> Vehicles { get; set; } = new();
 }

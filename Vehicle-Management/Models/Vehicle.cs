@@ -1,4 +1,5 @@
 ﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
 
 namespace VehicleManagementApi.Models;
 
@@ -19,4 +20,8 @@ public class Vehicle
     public string RegistrationNumber { get; set; } = "";
 
     public bool IsActive { get; set; } = true;
+
+    public int? CustomerId { get; set; }
+
+    public Customer? Customer { get; set; }
 }

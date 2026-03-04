@@ -9,7 +9,13 @@ namespace VehicleManagementApi.Controllers;
 public class CustomersController : ControllerBase
 {
     private readonly ICustomerService _service;
-    public CustomersController(ICustomerService service) => _service = service;
+    private readonly IVehicleService _vehicleService;
+
+    public CustomersController(ICustomerService service, IVehicleService vehicleService)
+    {
+        _service = service;
+        _vehicleService = vehicleService;
+    }
 
     [HttpGet]
     public async Task<ActionResult<List<Customer>>> GetAll()
@@ -45,5 +51,15 @@ public class CustomersController : ControllerBase
     {
         var deleted = await _service.DeleteAsync(id);
         return deleted ? NoContent() : NotFound();
+    }
+
+    [HttpGet("{id:int}/vehicles")]
+    public async Task<ActionResult<List<Vehicle>>> GetVehiclesByCustomerId(int id)
+    {
+        var customer = await _service.GetByIdAsync(id);
+        if (customer is null) return NotFound("Customer not found.");
+
+        var vehicles = await _vehicleService.GetByCustomerIdAsync(id);
+        return Ok(vehicles);
     }
 }

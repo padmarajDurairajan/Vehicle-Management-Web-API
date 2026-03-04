@@ -20,5 +20,14 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Customer>()
             .HasIndex(c => c.Email)
             .IsUnique();
+
+        modelBuilder.Entity<Vehicle>()
+            .HasOne(v => v.Customer)
+            .WithMany(c => c.Vehicles)
+            .HasForeignKey(v => v.CustomerId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<Vehicle>()
+            .HasQueryFilter(v => v.IsActive);
     }
 }

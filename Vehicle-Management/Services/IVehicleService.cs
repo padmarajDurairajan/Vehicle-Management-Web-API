@@ -9,4 +9,5 @@ public interface IVehicleService
     Task<(bool Success, string? Error, Vehicle? Vehicle)> CreateAsync(Vehicle input);
     Task<(bool Success, string? Error)> UpdateAsync(int id, Vehicle input);
     Task<bool> DeleteAsync(int id);
+    Task<List<Vehicle>> GetByCustomerIdAsync(int customerId);
 }

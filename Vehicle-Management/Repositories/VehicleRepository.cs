@@ -15,7 +15,10 @@ public class VehicleRepository : IVehicleRepository
     }
 
     public async Task<List<Vehicle>> GetAllAsync()
-        => await _context.Vehicles.AsNoTracking().OrderBy(v => v.Id).ToListAsync();
+    => await _context.Vehicles
+        .AsNoTracking()
+        .OrderBy(v => v.Id)
+        .ToListAsync();
 
     public async Task<Vehicle?> GetByIdAsync(int id)
         => await _context.Vehicles.FirstOrDefaultAsync(v => v.Id == id);
@@ -70,13 +73,14 @@ public class VehicleRepository : IVehicleRepository
             var existing = await _context.Vehicles.FirstOrDefaultAsync(v => v.Id == id);
             if (existing is null) return false;
 
-            _context.Vehicles.Remove(existing);
+            existing.IsActive = false;
+
             await _context.SaveChangesAsync();
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "DB error while deleting vehicle. Id={Id}", id);
+            _logger.LogError(ex, "DB error while soft deleting vehicle. Id={Id}", id);
             throw;
         }
         finally
@@ -84,4 +88,11 @@ public class VehicleRepository : IVehicleRepository
             _logger.LogDebug("DeleteAsync(Vehicle) finished. Id={Id}", id);
         }
     }
+
+    public async Task<List<Vehicle>> GetByCustomerIdAsync(int customerId)
+    => await _context.Vehicles
+        .AsNoTracking()
+        .Where(v => v.CustomerId == customerId)
+        .OrderBy(v => v.Id)
+        .ToListAsync();
 }
