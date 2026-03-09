@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using VehicleManagementApi.Models;
 using VehicleManagementApi.Services;
 
@@ -6,6 +7,7 @@ namespace VehicleManagementApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize] // All endpoints require JWT (also enforced by FallbackPolicy)
 public class CustomersController : ControllerBase
 {
     private readonly ICustomerService _service;
@@ -29,6 +31,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<ActionResult<Customer>> Create(Customer input)
     {
         var (success, error, created) = await _service.CreateAsync(input);
@@ -47,6 +50,7 @@ public class CustomersController : ControllerBase
     }
 
     [HttpDelete("{id:int}")]
+    [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Delete(int id)
     {
         var deleted = await _service.DeleteAsync(id);
