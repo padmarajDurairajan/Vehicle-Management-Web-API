@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi;
 using Microsoft.OpenApi.Models;
 using System.Text;
 using VehicleManagementApi.Database;
@@ -19,7 +18,11 @@ builder.Services.AddEndpointsApiExplorer();
 // Swagger + JWT support in Swagger UI
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo { Title = "VehicleManagement API", Version = "v1" });
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "VehicleManagement API",
+        Version = "v1"
+    });
 
     var securityScheme = new OpenApiSecurityScheme
     {
@@ -67,7 +70,8 @@ if (string.IsNullOrWhiteSpace(issuer) ||
     string.IsNullOrWhiteSpace(audience) ||
     string.IsNullOrWhiteSpace(signingKey))
 {
-    throw new InvalidOperationException("JWT configuration is missing. Please configure Jwt:Issuer, Jwt:Audience, Jwt:SigningKey in appsettings.json");
+    throw new InvalidOperationException(
+        "JWT configuration is missing. Please configure Jwt:Issuer, Jwt:Audience, Jwt:SigningKey in appsettings.json");
 }
 
 builder.Services
@@ -83,14 +87,15 @@ builder.Services
             ValidAudience = audience,
 
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(signingKey)),
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(signingKey)),
 
             ValidateLifetime = true,
-            ClockSkew = TimeSpan.FromSeconds(30) // small tolerance
+            ClockSkew = TimeSpan.FromSeconds(30)
         };
     });
 
-// Require auth for ALL endpoints by default
+// Require auth for all endpoints by default
 builder.Services.AddAuthorization(options =>
 {
     options.FallbackPolicy = new AuthorizationPolicyBuilder()
@@ -111,10 +116,15 @@ if (!app.Environment.IsDevelopment())
     app.UseHttpsRedirection();
 }
 
+// Custom Middleware Pipeline
+app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseMiddleware<RequestLoggingMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
+// Security Middleware
 app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+
 app.Run();
