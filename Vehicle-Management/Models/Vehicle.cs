@@ -1,9 +1,8 @@
 ﻿using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 
 namespace VehicleManagementApi.Models;
 
-public class Vehicle
+public class Vehicle : IEntity
 {
     public int Id { get; set; }
 

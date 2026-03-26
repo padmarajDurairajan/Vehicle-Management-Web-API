@@ -4,30 +4,32 @@ using VehicleManagementApi.Models;
 
 namespace VehicleManagementApi.Repositories;
 
-public class VehicleRepository : IVehicleRepository
+public class VehicleRepository : Repository<Vehicle>, IVehicleRepository
 {
-    private readonly AppDbContext _context;
     private readonly ILogger<VehicleRepository> _logger;
+
     public VehicleRepository(AppDbContext context, ILogger<VehicleRepository> logger)
+        : base(context)
     {
-        _context = context;
         _logger = logger;
     }
 
-    public async Task<List<Vehicle>> GetAllAsync()
-    => await _context.Vehicles
-        .AsNoTracking()
-        .OrderBy(v => v.Id)
-        .ToListAsync();
+    public override async Task<List<Vehicle>> GetAllAsync()
+        => await _context.Vehicles
+            .AsNoTracking()
+            .OrderBy(v => v.Id)
+            .ToListAsync();
 
-    public async Task<Vehicle?> GetByIdAsync(int id)
-        => await _context.Vehicles.FirstOrDefaultAsync(v => v.Id == id);
+    public override async Task<Vehicle?> GetByIdAsync(int id)
+        => await _context.Vehicles
+            .FirstOrDefaultAsync(v => v.Id == id);
 
     public async Task<bool> RegistrationExistsAsync(string registrationNumber, int? excludeId = null)
         => await _context.Vehicles.AnyAsync(v =>
-            v.RegistrationNumber == registrationNumber && (excludeId == null || v.Id != excludeId.Value));
+            v.RegistrationNumber == registrationNumber &&
+            (excludeId == null || v.Id != excludeId.Value));
 
-    public async Task<Vehicle> AddAsync(Vehicle vehicle)
+    public override async Task<Vehicle> AddAsync(Vehicle vehicle)
     {
         try
         {
@@ -46,7 +48,7 @@ public class VehicleRepository : IVehicleRepository
         }
     }
 
-    public async Task<bool> UpdateAsync(Vehicle vehicle)
+    public override async Task<bool> UpdateAsync(Vehicle vehicle)
     {
         try
         {
@@ -66,7 +68,7 @@ public class VehicleRepository : IVehicleRepository
         }
     }
 
-    public async Task<bool> DeleteAsync(int id)
+    public override async Task<bool> DeleteAsync(int id)
     {
         try
         {
@@ -74,7 +76,6 @@ public class VehicleRepository : IVehicleRepository
             if (existing is null) return false;
 
             existing.IsActive = false;
-
             await _context.SaveChangesAsync();
             return true;
         }
@@ -90,9 +91,9 @@ public class VehicleRepository : IVehicleRepository
     }
 
     public async Task<List<Vehicle>> GetByCustomerIdAsync(int customerId)
-    => await _context.Vehicles
-        .AsNoTracking()
-        .Where(v => v.CustomerId == customerId)
-        .OrderBy(v => v.Id)
-        .ToListAsync();
+        => await _context.Vehicles
+            .AsNoTracking()
+            .Where(v => v.CustomerId == customerId)
+            .OrderBy(v => v.Id)
+            .ToListAsync();
 }

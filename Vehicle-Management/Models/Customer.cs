@@ -2,7 +2,7 @@
 
 namespace VehicleManagementApi.Models;
 
-public class Customer
+public class Customer : IEntity
 {
     public int Id { get; set; }
 
