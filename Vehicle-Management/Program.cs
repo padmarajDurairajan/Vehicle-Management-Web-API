@@ -1,12 +1,15 @@
+using System.Text;
+using DotPulsar;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System.Text;
 using VehicleManagementApi.Database;
 using VehicleManagementApi.Filters;
 using VehicleManagementApi.Middlewares;
+using VehicleManagementApi.Pulsar;
 using VehicleManagementApi.Repositories;
 using VehicleManagementApi.Services;
 
@@ -15,8 +18,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddMemoryCache();
+builder.Services.AddHttpContextAccessor();
 
-// Swagger + JWT support in Swagger UI
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
@@ -51,17 +54,28 @@ builder.Services.AddSwaggerGen(c =>
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// DI: Repositories & Services
 builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
 builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IVehicleRepository, VehicleRepository>();
 builder.Services.AddScoped<IVehicleService, VehicleService>();
 
-// DI: Filters
 builder.Services.AddScoped<ValidateVehicleFilter>();
 builder.Services.AddScoped<UniqueVehicleRegistrationFilter>();
 
-// -------------------- JWT AUTH SETUP --------------------
+builder.Services.Configure<PulsarOptions>(
+    builder.Configuration.GetSection(PulsarOptions.SectionName));
+
+builder.Services.AddSingleton<IPulsarEventPublisher>(sp =>
+{
+    var options = sp.GetRequiredService<IOptions<PulsarOptions>>().Value;
+    if (!options.Enabled)
+        return new NullPulsarEventPublisher();
+
+    return new PulsarEventPublisher(
+        sp.GetRequiredService<IOptions<PulsarOptions>>(),
+        sp.GetRequiredService<ILogger<PulsarEventPublisher>>());
+});
+
 var jwtSection = builder.Configuration.GetSection("Jwt");
 var issuer = jwtSection["Issuer"];
 var audience = jwtSection["Audience"];
@@ -96,7 +110,6 @@ builder.Services
         };
     });
 
-// Require auth for all endpoints by default
 builder.Services.AddAuthorization(options =>
 {
     options.FallbackPolicy = new AuthorizationPolicyBuilder()

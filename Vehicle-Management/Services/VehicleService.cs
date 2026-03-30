@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Caching.Memory;
 using VehicleManagementApi.Caching;
 using VehicleManagementApi.Models;
+using VehicleManagementApi.Pulsar;
 using VehicleManagementApi.Repositories;
 
 namespace VehicleManagementApi.Services;
@@ -14,15 +15,18 @@ public class VehicleService : IVehicleService
     private readonly IVehicleRepository _repo;
     private readonly IMemoryCache _cache;
     private readonly ILogger<VehicleService> _logger;
+    private readonly IPulsarEventPublisher _pulsarPublisher;
 
     public VehicleService(
         IVehicleRepository repo,
         IMemoryCache cache,
-        ILogger<VehicleService> logger)
+        ILogger<VehicleService> logger,
+        IPulsarEventPublisher pulsarPublisher)
     {
         _repo = repo;
         _cache = cache;
         _logger = logger;
+        _pulsarPublisher = pulsarPublisher;
     }
 
     public async Task<List<Vehicle>> GetAllAsync()
@@ -93,6 +97,7 @@ public class VehicleService : IVehicleService
         var created = await _repo.AddAsync(input);
 
         InvalidateVehicleCaches(created.Id, created.CustomerId);
+        await _pulsarPublisher.PublishVehicleAsync("vehicle.created", created);
 
         _logger.LogInformation("Vehicle created. Id={Id} RegNo={RegNo}", created.Id, created.RegistrationNumber);
         return (true, null, created);
@@ -134,9 +139,9 @@ public class VehicleService : IVehicleService
         InvalidateVehicleCaches(id, previousCustomerId);
 
         if (input.CustomerId.HasValue && input.CustomerId != previousCustomerId)
-        {
             _cache.Remove(CacheKeys.Vehicles.ByCustomerId(input.CustomerId.Value));
-        }
+
+        await _pulsarPublisher.PublishVehicleAsync("vehicle.updated", existing);
 
         _logger.LogInformation("Vehicle updated successfully. Id={Id}", id);
         return (true, null);
@@ -160,7 +165,10 @@ public class VehicleService : IVehicleService
             return false;
         }
 
+        existing.IsActive = false;
+
         InvalidateVehicleCaches(id, existing.CustomerId);
+        await _pulsarPublisher.PublishVehicleAsync("vehicle.deleted", existing);
 
         _logger.LogInformation("Vehicle deleted successfully. Id={Id}", id);
         return true;
@@ -203,8 +211,6 @@ public class VehicleService : IVehicleService
         _cache.Remove(CacheKeys.Vehicles.ById(vehicleId));
 
         if (customerId.HasValue)
-        {
             _cache.Remove(CacheKeys.Vehicles.ByCustomerId(customerId.Value));
-        }
     }
 }

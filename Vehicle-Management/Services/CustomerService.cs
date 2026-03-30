@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Caching.Memory;
 using VehicleManagementApi.Caching;
 using VehicleManagementApi.Models;
+using VehicleManagementApi.Pulsar;
 using VehicleManagementApi.Repositories;
 
 namespace VehicleManagementApi.Services;
@@ -13,15 +14,18 @@ public class CustomerService : ICustomerService
     private readonly ICustomerRepository _repo;
     private readonly IMemoryCache _cache;
     private readonly ILogger<CustomerService> _logger;
+    private readonly IPulsarEventPublisher _pulsarPublisher;
 
     public CustomerService(
         ICustomerRepository repo,
         IMemoryCache cache,
-        ILogger<CustomerService> logger)
+        ILogger<CustomerService> logger,
+        IPulsarEventPublisher pulsarPublisher)
     {
         _repo = repo;
         _cache = cache;
         _logger = logger;
+        _pulsarPublisher = pulsarPublisher;
     }
 
     public async Task<List<Customer>> GetAllAsync()
@@ -93,6 +97,7 @@ public class CustomerService : ICustomerService
         var created = await _repo.AddAsync(input);
 
         InvalidateCustomerCaches(created.Id);
+        await _pulsarPublisher.PublishCustomerAsync("customer.created", created);
 
         _logger.LogInformation("Customer created successfully. Id={Id} Email={Email}", created.Id, created.Email);
         return (true, null, created);
@@ -124,6 +129,7 @@ public class CustomerService : ICustomerService
         await _repo.UpdateAsync(existing);
 
         InvalidateCustomerCaches(id);
+        await _pulsarPublisher.PublishCustomerAsync("customer.updated", existing);
 
         _logger.LogInformation("Customer updated successfully. Id={Id}", id);
         return (true, null);
@@ -133,15 +139,23 @@ public class CustomerService : ICustomerService
     {
         _logger.LogInformation("Deleting customer. Id={Id}", id);
 
-        var deleted = await _repo.DeleteAsync(id);
-
-        if (!deleted)
+        var existing = await _repo.GetByIdAsync(id);
+        if (existing is null)
         {
             _logger.LogWarning("Delete customer failed: not found. Id={Id}", id);
             return false;
         }
 
+        var deleted = await _repo.DeleteAsync(id);
+
+        if (!deleted)
+        {
+            _logger.LogWarning("Delete customer failed during repository delete. Id={Id}", id);
+            return false;
+        }
+
         InvalidateCustomerCaches(id);
+        await _pulsarPublisher.PublishCustomerAsync("customer.deleted", existing);
 
         _logger.LogInformation("Customer deleted successfully. Id={Id}", id);
         return true;
