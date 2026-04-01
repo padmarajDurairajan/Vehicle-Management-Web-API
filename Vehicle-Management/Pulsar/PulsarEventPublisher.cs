@@ -1,20 +1,14 @@
-﻿using DotPulsar;
-using DotPulsar.Abstractions;
-using DotPulsar.Extensions;
+﻿using System.Text.Json;
 using Microsoft.Extensions.Options;
-using System.Collections.Concurrent;
-using System.Text.Json;
 using VehicleManagementApi.Models;
 
 namespace VehicleManagementApi.Pulsar;
 
-public sealed class PulsarEventPublisher : IPulsarEventPublisher, IAsyncDisposable
+public sealed class PulsarEventPublisher : IPulsarEventPublisher
 {
     private readonly PulsarOptions _options;
+    private readonly IPulsarPublishQueue _queue;
     private readonly ILogger<PulsarEventPublisher> _logger;
-    private readonly IPulsarClient _client;
-    private readonly ConcurrentDictionary<string, IProducer<byte[]>> _producers = new();
-    private readonly SemaphoreSlim _producerLock = new(1, 1);
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -24,15 +18,12 @@ public sealed class PulsarEventPublisher : IPulsarEventPublisher, IAsyncDisposab
 
     public PulsarEventPublisher(
         IOptions<PulsarOptions> options,
+        IPulsarPublishQueue queue,
         ILogger<PulsarEventPublisher> logger)
     {
         _options = options.Value;
+        _queue = queue;
         _logger = logger;
-
-        _client = PulsarClient
-            .Builder()
-            .ServiceUrl(new Uri(_options.ServiceUrl))
-            .Build();
     }
 
     public async Task PublishCustomerAsync(string eventName, Customer customer, CancellationToken cancellationToken = default)
@@ -54,7 +45,19 @@ public sealed class PulsarEventPublisher : IPulsarEventPublisher, IAsyncDisposab
             Payload = payload
         };
 
-        await PublishAsync(_options.CustomerEventsTopic, envelope, cancellationToken);
+        var bytes = JsonSerializer.SerializeToUtf8Bytes(envelope, JsonOptions);
+
+        await _queue.EnqueueAsync(new PulsarPublishQueueItem
+        {
+            Topic = _options.CustomerEventsTopic,
+            EventName = eventName,
+            Payload = bytes
+        }, cancellationToken);
+
+        _logger.LogInformation(
+            "Customer Pulsar event queued. Topic={Topic} EventName={EventName}",
+            _options.CustomerEventsTopic,
+            eventName);
     }
 
     public async Task PublishVehicleAsync(string eventName, Vehicle vehicle, CancellationToken cancellationToken = default)
@@ -77,56 +80,18 @@ public sealed class PulsarEventPublisher : IPulsarEventPublisher, IAsyncDisposab
             Payload = payload
         };
 
-        await PublishAsync(_options.VehicleEventsTopic, envelope, cancellationToken);
-    }
-
-    private async Task PublishAsync<T>(string topic, PulsarEventEnvelope<T> envelope, CancellationToken cancellationToken)
-    {
-        var producer = await GetProducerAsync(topic, cancellationToken);
         var bytes = JsonSerializer.SerializeToUtf8Bytes(envelope, JsonOptions);
 
-        await producer.Send(bytes, cancellationToken);
+        await _queue.EnqueueAsync(new PulsarPublishQueueItem
+        {
+            Topic = _options.VehicleEventsTopic,
+            EventName = eventName,
+            Payload = bytes
+        }, cancellationToken);
 
         _logger.LogInformation(
-            "Published Pulsar event. Topic={Topic} EventName={EventName}",
-            topic,
-            envelope.EventName);
-    }
-
-    private async Task<IProducer<byte[]>> GetProducerAsync(string topic, CancellationToken cancellationToken)
-    {
-        if (_producers.TryGetValue(topic, out var existingProducer))
-            return existingProducer;
-
-        await _producerLock.WaitAsync(cancellationToken);
-        try
-        {
-            if (_producers.TryGetValue(topic, out existingProducer))
-                return existingProducer;
-
-            var producer = _client
-                .NewProducer(Schema.ByteArray)
-                .Topic(topic)
-                .Create();
-
-            _producers[topic] = producer;
-
-            _logger.LogInformation("Created Pulsar producer for topic {Topic}", topic);
-
-            return producer;
-        }
-        finally
-        {
-            _producerLock.Release();
-        }
-    }
-
-    public async ValueTask DisposeAsync()
-    {
-        foreach (var producer in _producers.Values)
-            await producer.DisposeAsync();
-
-        await _client.DisposeAsync();
-        _producerLock.Dispose();
+            "Vehicle Pulsar event queued. Topic={Topic} EventName={EventName}",
+            _options.VehicleEventsTopic,
+            eventName);
     }
 }

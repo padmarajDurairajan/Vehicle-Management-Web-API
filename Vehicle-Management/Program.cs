@@ -74,6 +74,8 @@ builder.Services.AddScoped<UniqueVehicleRegistrationFilter>();
 builder.Services.Configure<PulsarOptions>(
     builder.Configuration.GetSection(PulsarOptions.SectionName));
 
+builder.Services.AddSingleton<IPulsarPublishQueue, PulsarPublishQueue>();
+
 builder.Services.AddSingleton<IPulsarEventPublisher>(sp =>
 {
     var options = sp.GetRequiredService<IOptions<PulsarOptions>>().Value;
@@ -82,8 +84,13 @@ builder.Services.AddSingleton<IPulsarEventPublisher>(sp =>
 
     return new PulsarEventPublisher(
         sp.GetRequiredService<IOptions<PulsarOptions>>(),
+        sp.GetRequiredService<IPulsarPublishQueue>(),
         sp.GetRequiredService<ILogger<PulsarEventPublisher>>());
 });
+
+builder.Services.AddHostedService<PulsarPublishBackgroundService>();
+builder.Services.AddHostedService<CustomerEventsConsumerService>();
+builder.Services.AddHostedService<VehicleEventsConsumerService>();
 
 var jwtSection = builder.Configuration.GetSection("Jwt");
 var issuer = jwtSection["Issuer"];
