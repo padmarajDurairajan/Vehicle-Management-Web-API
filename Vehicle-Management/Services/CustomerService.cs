@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Caching.Memory;
-using VehicleManagementApi.Caching;
+﻿using VehicleManagementApi.Caching;
 using VehicleManagementApi.Models;
 using VehicleManagementApi.Pulsar;
 using VehicleManagementApi.Repositories;
@@ -8,17 +7,20 @@ namespace VehicleManagementApi.Services;
 
 public class CustomerService : ICustomerService
 {
-    private static readonly TimeSpan AllCustomersCacheDuration = TimeSpan.FromMinutes(5);
-    private static readonly TimeSpan CustomerByIdCacheDuration = TimeSpan.FromMinutes(3);
+    private static readonly TimeSpan AllCustomersMemoryCacheDuration = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan AllCustomersDistributedCacheDuration = TimeSpan.FromMinutes(15);
+
+    private static readonly TimeSpan CustomerByIdMemoryCacheDuration = TimeSpan.FromMinutes(3);
+    private static readonly TimeSpan CustomerByIdDistributedCacheDuration = TimeSpan.FromMinutes(10);
 
     private readonly ICustomerRepository _repo;
-    private readonly IMemoryCache _cache;
+    private readonly ICacheService _cache;
     private readonly ILogger<CustomerService> _logger;
     private readonly IPulsarEventPublisher _pulsarPublisher;
 
     public CustomerService(
         ICustomerRepository repo,
-        IMemoryCache cache,
+        ICacheService cache,
         ILogger<CustomerService> logger,
         IPulsarEventPublisher pulsarPublisher)
     {
@@ -30,54 +32,28 @@ public class CustomerService : ICustomerService
 
     public async Task<List<Customer>> GetAllAsync()
     {
-        if (_cache.TryGetValue(CacheKeys.Customers.All, out List<Customer>? cachedCustomers) &&
-            cachedCustomers is not null)
-        {
-            _logger.LogInformation("CACHE HIT - Customers");
-            return cachedCustomers;
-        }
-
-        _logger.LogInformation("CACHE MISS - Customers (DB call)");
-
-        var customers = await _repo.GetAllAsync();
-
-        _cache.Set(
+        return await _cache.GetOrCreateAsync(
             CacheKeys.Customers.All,
-            customers,
-            new MemoryCacheEntryOptions
+            async _ =>
             {
-                AbsoluteExpirationRelativeToNow = AllCustomersCacheDuration
-            });
-
-        return customers;
+                _logger.LogInformation("CACHE MISS - Customers (DB call)");
+                return await _repo.GetAllAsync();
+            },
+            AllCustomersMemoryCacheDuration,
+            AllCustomersDistributedCacheDuration) ?? new List<Customer>();
     }
 
     public async Task<Customer?> GetByIdAsync(int id)
     {
-        var cacheKey = CacheKeys.Customers.ById(id);
-
-        if (_cache.TryGetValue(cacheKey, out Customer? cachedCustomer))
-        {
-            _logger.LogInformation("CACHE HIT - Customer Id={Id}", id);
-            return cachedCustomer;
-        }
-
-        _logger.LogInformation("CACHE MISS - Customer Id={Id} (DB call)", id);
-
-        var customer = await _repo.GetByIdAsync(id);
-
-        if (customer is not null)
-        {
-            _cache.Set(
-                cacheKey,
-                customer,
-                new MemoryCacheEntryOptions
-                {
-                    AbsoluteExpirationRelativeToNow = CustomerByIdCacheDuration
-                });
-        }
-
-        return customer;
+        return await _cache.GetOrCreateAsync(
+            CacheKeys.Customers.ById(id),
+            async _ =>
+            {
+                _logger.LogInformation("CACHE MISS - Customer Id={Id} (DB call)", id);
+                return await _repo.GetByIdAsync(id);
+            },
+            CustomerByIdMemoryCacheDuration,
+            CustomerByIdDistributedCacheDuration);
     }
 
     public async Task<(bool Success, string? Error, Customer? Customer)> CreateAsync(Customer input)
@@ -96,7 +72,7 @@ public class CustomerService : ICustomerService
 
         var created = await _repo.AddAsync(input);
 
-        InvalidateCustomerCaches(created.Id);
+        await InvalidateCustomerCachesAsync(created.Id);
         await _pulsarPublisher.PublishCustomerAsync("customer.created", created);
 
         _logger.LogInformation("Customer created successfully. Id={Id} Email={Email}", created.Id, created.Email);
@@ -128,7 +104,7 @@ public class CustomerService : ICustomerService
 
         await _repo.UpdateAsync(existing);
 
-        InvalidateCustomerCaches(id);
+        await InvalidateCustomerCachesAsync(id);
         await _pulsarPublisher.PublishCustomerAsync("customer.updated", existing);
 
         _logger.LogInformation("Customer updated successfully. Id={Id}", id);
@@ -154,19 +130,19 @@ public class CustomerService : ICustomerService
             return false;
         }
 
-        InvalidateCustomerCaches(id);
+        await InvalidateCustomerCachesAsync(id);
         await _pulsarPublisher.PublishCustomerAsync("customer.deleted", existing);
 
         _logger.LogInformation("Customer deleted successfully. Id={Id}", id);
         return true;
     }
 
-    private void InvalidateCustomerCaches(int customerId)
+    private async Task InvalidateCustomerCachesAsync(int customerId)
     {
         _logger.LogInformation("Invalidating customer cache. CustomerId={CustomerId}", customerId);
 
-        _cache.Remove(CacheKeys.Customers.All);
-        _cache.Remove(CacheKeys.Customers.ById(customerId));
-        _cache.Remove(CacheKeys.Vehicles.ByCustomerId(customerId));
+        await _cache.RemoveAsync(CacheKeys.Customers.All);
+        await _cache.RemoveAsync(CacheKeys.Customers.ById(customerId));
+        await _cache.RemoveAsync(CacheKeys.Vehicles.ByCustomerId(customerId));
     }
 }

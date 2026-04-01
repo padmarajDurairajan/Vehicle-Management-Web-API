@@ -12,12 +12,21 @@ using VehicleManagementApi.Middlewares;
 using VehicleManagementApi.Pulsar;
 using VehicleManagementApi.Repositories;
 using VehicleManagementApi.Services;
+using VehicleManagementApi.Caching;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddMemoryCache();
+
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration.GetConnectionString("RedisConnection");
+    options.InstanceName = "VehicleManagementApi:";
+});
+
+builder.Services.AddScoped<ICacheService, MultiLevelCacheService>();
 builder.Services.AddHttpContextAccessor();
 
 builder.Services.AddSwaggerGen(c =>
