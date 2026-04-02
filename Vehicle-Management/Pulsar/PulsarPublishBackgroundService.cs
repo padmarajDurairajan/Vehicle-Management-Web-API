@@ -50,12 +50,12 @@ public sealed class PulsarPublishBackgroundService : BackgroundService
                 using var timeoutCts = new CancellationTokenSource(TimeSpan.FromSeconds(_options.PublishTimeoutSeconds));
                 using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(stoppingToken, timeoutCts.Token);
 
+                // DotPulsar producer.Send handles connection readiness internally.
+                // Waiting on state transitions can hang if the producer is already connected.
                 _logger.LogInformation(
-                    "Waiting for producer to connect. Topic={Topic} EventName={EventName}",
+                    "Background publish waiting to send. Topic={Topic} EventName={EventName}",
                     item.Topic,
                     item.EventName);
-
-                await producer.State.OnStateChangeTo(ProducerState.Connected, linkedCts.Token);
 
                 _logger.LogInformation(
                     "Background publish started. Topic={Topic} EventName={EventName}",

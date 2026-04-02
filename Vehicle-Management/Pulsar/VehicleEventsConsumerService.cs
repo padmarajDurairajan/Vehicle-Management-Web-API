@@ -20,10 +20,7 @@ public sealed class VehicleEventsConsumerService : BackgroundService
         _options = options.Value;
         _logger = logger;
 
-        _client = PulsarClient
-            .Builder()
-            .ServiceUrl(new Uri(_options.ServiceUrl))
-            .Build();
+        _client = PulsarClientFactory.Create(_options, _logger);
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
